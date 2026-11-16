@@ -1,0 +1,53 @@
+name: CoAi Reactive Omni - Foundry Validation (No Deployment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Install pinned dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p lib evidence/ci
+          forge --version | tee evidence/ci/foundry-version.txt
+          git clone --no-checkout https://github.com/Reactive-Network/reactive-lib-omni.git lib/reactive-lib-omni
+          git -C lib/reactive-lib-omni checkout --detach 3ade0dcf1d27e67e5783ef807e73a1b9e0c0cce8
+          git clone --no-checkout https://github.com/foundry-rs/forge-std.git lib/forge-std
+          git -C lib/forge-std checkout --detach 15b2df92a05d4d2f76a06653872fefb287e0e01c
+          git -C lib/reactive-lib-omni rev-parse HEAD | tee evidence/ci/reactive-revision.txt
+          git -C lib/forge-std rev-parse HEAD | tee evidence/ci/forge-std-revision.txt
+          sha256sum src/*.sol test/*.sol foundry.toml > evidence/ci/source-sha256.txt
+      - name: Foundry build
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge build 2>&1 | tee evidence/ci/forge-build.log
+      - name: Foundry test
+        shell: bash
+        run: |
+          set -euo pipefail
+          forge test -vv 2>&1 | tee evidence/ci/forge-test.log
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coai-reactive-build01-12-foundry
+          path: evidence/ci/
+          if-no-files-found: warn
+          retention-days: 14
