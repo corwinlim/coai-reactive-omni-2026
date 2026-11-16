@@ -11,7 +11,7 @@ contract GuardCallbackTest is Test {
     GuardCallback cb;
     EventEmitter emitter;
     function setUp() public {
-        cb = new GuardCallback(IPayable(proxy), reactive);
+        cb = new GuardCallback(IPayable(payable(proxy)), reactive);
         emitter = new EventEmitter();
     }
     function testAuthorizedCallbackAndReplayProtection() public {
